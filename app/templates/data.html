@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Data &amp; Model{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/data.css') }}">
+{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Data &amp; model status</h1>
+  <p>This runs automatically -- there's nothing you need to upload.</p>
+</section>
+
+<section class="panel status-panel">
+  <div class="status-row">
+    <i class="fa-solid {{ 'fa-circle-check' if model_trained else 'fa-circle-exclamation' }}"></i>
+    <div>
+      <strong>{{ "Model is trained and up to date" if model_trained else "Model not trained yet" }}</strong>
+      <span class="muted">Trained automatically on the live dataset already loaded into the system -- {{ zone_count }} zones, {{ forecast_reading_count }} forecast readings{% if reading_count %}, {{ reading_count }} simple-format readings{% endif %}.</span>
+    </div>
+  </div>
+
+  {% if metrics %}
+  <div class="metric-grid" style="margin-top:1rem">
+    <div class="metric"><span>{{ (metrics.classification.accuracy * 100)|round(1) }}%</span><label>Severity accuracy</label></div>
+    <div class="metric"><span>{{ (metrics.classification.f1 * 100)|round(1) }}%</span><label>Severity F1</label></div>
+    <div class="metric"><span>{{ metrics.regression.r2 }}</span><label>Risk score R²</label></div>
+    <div class="metric"><span>{{ metrics.rows_used }}</span><label>Rows used</label></div>
+  </div>
+  <p class="muted" style="margin-top:0.8rem">Source: {{ metrics.data_source.replace('_', ' ') }}. Full charts are on the <a href="{{ url_for('main.dashboard') }}">Dashboard</a> page.</p>
+  {% endif %}
+</section>
+
+<details class="panel advanced-panel">
+  <summary><i class="fa-solid fa-sliders"></i> Add or refresh data (optional, for a newer dataset)</summary>
+  <div class="advanced-panel__body">
+    <p class="muted">Only use this if you have a newer or additional JSON file to load -- the system already works
+      without it. Both the simple reading-list format and the full worst-case/best-case forecast format are
+      auto-detected.</p>
+    <form method="POST" action="{{ url_for('main.data_upload') }}" enctype="multipart/form-data" class="stacked-form">
+      <input type="file" name="json_file" accept=".json" required>
+      <button type="submit" class="btn btn--primary"><i class="fa-solid fa-upload"></i> Upload</button>
+    </form>
+    <form method="POST" action="{{ url_for('main.data_train') }}" style="margin-top:0.8rem">
+      <button type="submit" class="btn btn--accent"><i class="fa-solid fa-gears"></i> Retrain now</button>
+    </form>
+  </div>
+</details>
+{% endblock %}

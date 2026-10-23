@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Notifications</h1>
+  <p>Includes your automatic 30-day farming-cycle updates.</p>
+</section>
+
+{% if notifications %}
+<ul class="notif-list">
+  {% for n in notifications %}
+  <li class="notif notif--{{ n.level }}">
+    <i class="fa-solid {{ 'fa-circle-check' if n.level == 'info' else 'fa-triangle-exclamation' if n.level == 'warning' else 'fa-circle-exclamation' }}"></i>
+    <div>
+      <p>{{ n.message }}</p>
+      <time>{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</time>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty-state">
+  <i class="fa-solid fa-bell-slash"></i>
+  <p>No notifications yet. These appear automatically every 30 days per farm.</p>
+</div>
+{% endif %}
+{% endblock %}

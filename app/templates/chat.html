@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Chat with {{ other_user.name }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>{{ other_user.name }} {{ other_user.surname }}</h1>
+  <p><a href="{{ url_for('main.community') }}"><i class="fa-solid fa-arrow-left"></i> Back to Community</a></p>
+</section>
+
+<div class="panel chat-panel">
+  <div id="chat-log" class="chat-log">
+    {% for m in history %}
+    <div class="chat-bubble {{ 'chat-bubble--mine' if m.sender_id == current_user.id else '' }}">
+      <span class="chat-bubble__body">{{ m.body }}</span>
+      <time>{{ m.created_at.strftime('%H:%M') }}</time>
+    </div>
+    {% else %}
+    <p class="muted">No messages yet -- say hello.</p>
+    {% endfor %}
+  </div>
+  <form id="chat-form" class="chat-form">
+    <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off" required>
+    <button type="submit" class="btn btn--primary"><i class="fa-solid fa-paper-plane"></i></button>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+  window.CHAT_CONTEXT = {
+    otherUserId: {{ other_user.id }},
+    myUserId: {{ current_user.id }},
+  };
+</script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

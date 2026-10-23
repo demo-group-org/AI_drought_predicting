@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Good to see you, {{ current_user.name }}</h1>
+  <p>Here's where things stand across your farms and the zones you're watching.</p>
+</section>
+
+<section class="stat-grid" data-high-risk="{{ high_risk_count }}">
+  <div class="stat-card">
+    <i class="fa-solid fa-cow"></i>
+    <div>
+      <span class="stat-card__value">{{ farms|length }}</span>
+      <span class="stat-card__label">Registered farms</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <i class="fa-solid fa-map"></i>
+    <div>
+      <span class="stat-card__value">{{ zone_count }}</span>
+      <span class="stat-card__label">Zones being tracked</span>
+    </div>
+  </div>
+  <div class="stat-card {{ 'stat-card--danger is-pulsing' if high_risk_count else 'stat-card--danger' }}" id="high-risk-card">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    <div>
+      <span class="stat-card__value">{{ high_risk_count }}</span>
+      <span class="stat-card__label">Zones at high risk</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <i class="fa-solid fa-bell"></i>
+    <div>
+      <span class="stat-card__value">{{ unread_count }}</span>
+      <span class="stat-card__label">New notifications</span>
+    </div>
+  </div>
+</section>
+
+{% if farm_summaries %}
+<section>
+  <h2 style="margin-bottom:0.8rem">Your AI drought advisor</h2>
+  {% for item in farm_summaries %}
+  {% set farm = item.farm %}
+  {% set s = item.summary %}
+  <div class="advisor-card severity-{{ s.severity_band }}" data-farm-id="{{ farm.id }}">
+    <div class="advisor-card__header">
+      <div>
+        <i class="fa-solid fa-robot"></i>
+        <div>
+          <strong>{{ farm.name }}</strong>
+          <span class="muted">{{ farm.zone.name }}{% if farm.zone.province %} · {{ farm.zone.province }}{% endif %}</span>
+        </div>
+      </div>
+      <span class="drought-banner drought-banner--{{ 'active' if s.in_drought else 'clear' }}">
+        <i class="fa-solid {{ 'fa-cloud-showers-heavy' if s.in_drought else 'fa-sun' }}"></i>
+        {{ 'Drought risk period' if s.in_drought else 'No drought detected' }}
+      </span>
+    </div>
+
+    <div class="advisor-card__weather" data-weather-for="{{ farm.id }}">
+      <span class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading live weather...</span>
+    </div>
+
+    <p class="advisor-card__message">{{ s.message }}</p>
+
+    {% if s.recommended_actions %}
+    <ul class="advisor-card__actions">
+      {% for action in s.recommended_actions %}<li>{{ action }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="advisor-card__stats">
+      <div><span>{{ s.drought_stress_index if s.drought_stress_index is not none else '-' }}</span><label>Drought stress index</label></div>
+      <div><span>{{ s.water_point_level_pct if s.water_point_level_pct is not none else '-' }}{% if s.water_point_level_pct is not none %}%{% endif %}</span><label>Water point level</label></div>
+      <div><span>{{ s.feed_days_remaining if s.feed_days_remaining is not none else '-' }}</span><label>Feed days remaining</label></div>
+      <div><span>{{ s.trend or '-' }}</span><label>Trend</label></div>
+    </div>
+
+    <div class="advisor-card__toggle">
+      <span class="muted">Simulate:</span>
+      <button type="button" class="scenario-btn is-active" data-scenario="worst_case">
+        <i class="fa-solid fa-cloud-showers-heavy"></i> If drought continues
+      </button>
+      <button type="button" class="scenario-btn" data-scenario="best_case">
+        <i class="fa-solid fa-sun"></i> If rains return
+      </button>
+    </div>
+    <div class="advisor-card__projection" data-projection-for="{{ farm.id }}">
+      <span class="muted">Select a scenario above to see the projected outcome.</span>
+    </div>
+
+    <h3 style="margin-top:1rem;font-size:0.95rem">This week in {{ farm.zone.name }}</h3>
+    <div class="forecast-calendar" data-calendar-for="{{ farm.id }}">
+      <span class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading forecast...</span>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+{% else %}
+<section class="panel">
+  <div class="empty-state">
+    <i class="fa-solid fa-circle-plus"></i>
+    <p>You haven't added a farm yet -- once you do, your AI drought advisor appears here.</p>
+    <a href="{{ url_for('main.farms') }}" class="btn btn--primary">Add a farm</a>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <h2 style="margin-bottom:0.8rem"><i class="fa-solid fa-comment-dots"></i> Ask your drought advisor</h2>
+  <div class="panel chatbot-panel">
+    <div id="chatbot-log" class="chatbot-log">
+      <div class="chatbot-msg chatbot-msg--bot">
+        Hi {{ current_user.name }}, ask me things like "what's the weather at my farm", "what's my risk",
+        or "should I relocate" -- I answer from your farms' live data, nothing external.
+      </div>
+    </div>
+    <form id="chatbot-form" class="chat-form">
+      <input type="text" id="chatbot-input" placeholder="Ask a question..." autocomplete="off" required>
+      <button type="submit" class="btn btn--primary"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}

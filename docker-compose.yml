@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: drought_app
+      POSTGRES_PASSWORD: drought_pass
+      POSTGRES_DB: drought_platform
+    ports:
+      - "5432:5432"          # optional: lets you connect with pgAdmin/DBeaver from your host machine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U drought_app -d drought_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: change-this-in-production
+      DATABASE_URL: postgresql+psycopg2://drought_app:drought_pass@db:5432/drought_platform
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app              # live-reloads your code as you edit it locally
+
+volumes:
+  pgdata:

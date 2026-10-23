@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Drought Risk Map{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Drought risk map</h1>
+  <p>Click a marker to see its forecast, worst-case/best-case story, alerts, and relocation options.</p>
+</section>
+
+<div class="scenario-toggle">
+  <span>Scenario:</span>
+  <button type="button" class="scenario-btn is-active" data-scenario="worst_case">
+    <i class="fa-solid fa-cloud-showers-heavy"></i> Worst case (drought)
+  </button>
+  <button type="button" class="scenario-btn" data-scenario="best_case">
+    <i class="fa-solid fa-sun"></i> Best case (no drought)
+  </button>
+</div>
+
+<div class="map-layout">
+  <div id="risk-map"></div>
+  <aside id="zone-panel" class="zone-panel">
+    <div class="zone-panel__placeholder">
+      <i class="fa-solid fa-hand-pointer"></i>
+      <p>Select a zone on the map to see its detail.</p>
+    </div>
+  </aside>
+</div>
+
+<div class="map-legend">
+  <span><i class="fa-solid fa-circle legend-dot legend-dot--low"></i> Low risk</span>
+  <span><i class="fa-solid fa-circle legend-dot legend-dot--moderate"></i> Moderate risk</span>
+  <span><i class="fa-solid fa-circle legend-dot legend-dot--high"></i> High risk</span>
+  <span><i class="fa-solid fa-flag legend-dot legend-dot--safe"></i> Relocation target</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

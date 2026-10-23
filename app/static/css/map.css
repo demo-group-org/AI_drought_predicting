@@ -1,0 +1,49 @@
+/* Map page -- layout, zone detail panel, scenario toggle, legend.
+   Shared tokens (colours, buttons, nav) live in style.css. */
+
+.map-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+@media (max-width: 860px) { .map-layout { grid-template-columns: 1fr; } }
+#risk-map { height: 520px; border-radius: 10px; border: 1px solid var(--border); }
+
+.zone-panel {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem;
+  min-height: 520px;
+  overflow-y: auto;
+  max-height: 640px;
+}
+.zone-panel__placeholder { text-align: center; margin-top: 3rem; color: #6b6455; }
+.zone-panel__placeholder i { font-size: 1.6rem; color: var(--gold-deep); display: block; margin-bottom: 0.5rem; }
+.zone-panel h3 { margin-top: 0; }
+.zone-panel .severity-tag { display: inline-block; padding: 0.25rem 0.7rem; border-radius: 999px; font-weight: 700; font-size: 0.8rem; margin-bottom: 0.8rem; }
+.zone-panel .forecast-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.zone-panel .suggestion { padding: 0.5rem 0.6rem; background: var(--paper); border-radius: 6px; margin-top: 0.5rem; font-size: 0.88rem; }
+
+.map-legend { display: flex; gap: 1.5rem; margin-top: 0.8rem; font-size: 0.85rem; color: #6b6455; flex-wrap: wrap; }
+.legend-dot { font-size: 0.7rem; }
+.legend-dot--low { color: var(--sage); }
+.legend-dot--moderate { color: var(--amber); }
+.legend-dot--high { color: var(--clay); }
+.legend-dot--safe { color: #3B6FA0; }
+
+.scenario-toggle { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; font-size: 0.9rem; color: #6b6455; flex-wrap: wrap; }
+.scenario-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 0.9rem; border-radius: 999px; border: 1px solid var(--border);
+  background: #fff; font-family: var(--font-body); font-size: 0.85rem; cursor: pointer;
+}
+.scenario-btn.is-active { background: var(--bushveld); color: #F4F0E2; border-color: var(--bushveld); }
+
+.forecast-mini-chart { display: flex; align-items: flex-end; gap: 3px; height: 60px; margin: 0.6rem 0; }
+.forecast-mini-chart div { flex: 1; background: var(--gold); border-radius: 2px 2px 0 0; min-height: 2px; }
+
+.alert-card { border-left: 3px solid var(--clay); background: var(--paper); border-radius: 0 6px 6px 0; padding: 0.6rem 0.7rem; margin-top: 0.6rem; font-size: 0.85rem; }
+.alert-card--warning { border-left-color: var(--amber); }
+.alert-card ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+.alert-card li { margin-bottom: 0.15rem; }
+
+.weather-chip { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.8rem; }
+.weather-chip strong { font-family: var(--font-display); font-size: 1.1rem; }
+.weather-chip .muted { font-size: 0.8rem; text-transform: capitalize; }

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Drought Stress Platform{% endblock %} · KZN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+{% if current_user.is_authenticated %}
+<header class="app-nav">
+  <div class="app-nav__brand">
+    <i class="fa-solid fa-cloud-sun-rain"></i>
+    <span>Drought<strong>Watch</strong> KZN</span>
+  </div>
+  <nav class="app-nav__links">
+    <a href="{{ url_for('main.home') }}" class="{{ 'is-active' if request.endpoint=='main.home' }}">
+      <i class="fa-solid fa-house"></i> Home
+    </a>
+    <a href="{{ url_for('main.map_view') }}" class="{{ 'is-active' if request.endpoint=='main.map_view' }}">
+      <i class="fa-solid fa-map-location-dot"></i> Map
+    </a>
+    <a href="{{ url_for('main.farms') }}" class="{{ 'is-active' if request.endpoint=='main.farms' }}">
+      <i class="fa-solid fa-cow"></i> My Farms
+    </a>
+    <a href="{{ url_for('main.community') }}" class="{{ 'is-active' if request.endpoint=='main.community' }}">
+      <i class="fa-solid fa-people-group"></i> Community
+    </a>
+    <a href="{{ url_for('main.dashboard') }}" class="{{ 'is-active' if request.endpoint=='main.dashboard' }}">
+      <i class="fa-solid fa-chart-simple"></i> Dashboard
+    </a>
+    <a href="{{ url_for('main.notifications') }}" class="{{ 'is-active' if request.endpoint=='main.notifications' }}">
+      <i class="fa-solid fa-bell"></i> Notifications
+      {% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
+    </a>
+  </nav>
+  <div class="app-nav__user">
+    <span><i class="fa-regular fa-circle-user"></i> {{ current_user.name }}</span>
+    <a href="{{ url_for('auth.logout') }}" title="Log out"><i class="fa-solid fa-arrow-right-from-bracket"></i></a>
+  </div>
+</header>
+{% endif %}
+
+<main class="app-main {{ 'app-main--wide' if current_user.is_authenticated else 'app-main--center' }}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash--{{ category }}">
+            {% if category == 'success' %}<i class="fa-solid fa-circle-check"></i>
+            {% elif category == 'danger' %}<i class="fa-solid fa-triangle-exclamation"></i>
+            {% elif category == 'warning' %}<i class="fa-solid fa-circle-exclamation"></i>
+            {% else %}<i class="fa-solid fa-circle-info"></i>{% endif %}
+            <span>{{ message }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

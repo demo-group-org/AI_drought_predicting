@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Community{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Community</h1>
+  <p>See other farmers on the platform and send an alert if you need help.</p>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <h2><i class="fa-solid fa-triangle-exclamation"></i> Post a help alert</h2>
+    <p class="muted">If your farm is linked to a zone, farmers registered in that same zone will be notified directly.</p>
+    <form method="POST" action="{{ url_for('main.community') }}" class="stacked-form">
+      <label for="message">What do you need help with?</label>
+      <textarea id="message" name="message" rows="3" required placeholder="e.g. Need extra feed for 20 head, or a water tanker for my camp"></textarea>
+      <button type="submit" class="btn btn--accent"><i class="fa-solid fa-bullhorn"></i> Send alert</button>
+    </form>
+
+    <h2 style="margin-top:1.6rem">Recent help alerts</h2>
+    {% if help_alerts %}
+    <ul class="notif-list">
+      {% for a in help_alerts %}
+      <li class="notif notif--{{ 'info' if a.resolved else 'warning' }}">
+        <i class="fa-solid {{ 'fa-circle-check' if a.resolved else 'fa-bullhorn' }}"></i>
+        <div style="flex:1">
+          <p><strong>{{ a.requester.name }} {{ a.requester.surname }}</strong>{% if a.zone %} · {{ a.zone.name }}{% endif %}</p>
+          <p>{{ a.message }}</p>
+          <time>{{ a.created_at.strftime('%d %b %Y, %H:%M') }}{% if a.resolved %} · resolved{% endif %}</time>
+        </div>
+        {% if a.requester_id == current_user.id and not a.resolved %}
+        <form method="POST" action="{{ url_for('main.resolve_help_alert', alert_id=a.id) }}">
+          <button type="submit" class="btn btn--primary" style="padding:0.35rem 0.7rem;font-size:0.8rem">Mark resolved</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No help alerts posted yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2><i class="fa-solid fa-people-group"></i> Other farmers</h2>
+    {% if people %}
+    <ul class="farm-list">
+      {% for p in people %}
+      <li>
+        <i class="fa-regular fa-circle-user"></i>
+        <div>
+          <strong>{{ p.user.name }} {{ p.user.surname }}</strong>
+          <span>
+            {% if p.farm %}{{ p.farm.name }} · {{ p.farm.zone.name }}{% elif p.user.location %}{{ p.user.location }}{% else %}No farm registered yet{% endif %}
+          </span>
+        </div>
+        <a href="{{ url_for('main.community_chat', user_id=p.user.id) }}" class="btn btn--primary" style="padding:0.35rem 0.7rem;font-size:0.8rem"><i class="fa-solid fa-comment-dots"></i> Message</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No other farmers registered yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

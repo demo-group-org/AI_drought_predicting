@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js"></script>
+{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Dashboard</h1>
+  <p>Live, auto-refreshing view of every zone -- updates automatically as weather and forecast data change. No uploads, no static snapshots.</p>
+</section>
+
+<section class="panel">
+  <div class="dashboard-toolbar">
+    <h2 style="margin:0">Zones overview</h2>
+    <div class="dashboard-sort">
+      <span class="live-dot"></span> <span class="muted">live</span>
+      <label for="sort-select" class="muted" style="margin-left:0.8rem">Sort by</label>
+      <select id="sort-select">
+        <option value="risk-desc">Highest risk first</option>
+        <option value="risk-asc">Lowest risk first</option>
+        <option value="name">Name</option>
+      </select>
+    </div>
+  </div>
+  <div id="zone-overview-grid" class="zone-overview-grid">
+    <p class="muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading zones...</p>
+  </div>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Drought stress index by zone</h2>
+    <p class="muted">Refreshes automatically as new data comes in.</p>
+    <canvas id="dsi-chart" height="220"></canvas>
+  </section>
+  <section class="panel">
+    <h2>Live temperature vs. drought stress</h2>
+    <p class="muted">Pulled from the OpenWeatherMap refresh job -- shows how current conditions line up with each zone's risk.</p>
+    <canvas id="weather-chart" height="220"></canvas>
+  </section>
+</div>
+
+<details class="panel advanced-panel">
+  <summary><i class="fa-solid fa-flask"></i> Model evaluation snapshot (from the last training run)</summary>
+  <div class="advanced-panel__body">
+    <p class="muted">Unlike the charts above, these are a point-in-time snapshot of how well the model performed on a
+      held-out test split the last time it trained -- that's what a confusion matrix / feature-importance chart
+      inherently is, so these don't update live the way the zone data does. The model retrains automatically
+      whenever new data is loaded.</p>
+    {% if charts %}
+    <div class="chart-grid">
+      {% for chart in charts %}
+      <figure class="chart-card">
+        <img src="{{ url_for('static', filename='img/dashboard/' ~ chart) }}" alt="{{ chart }}">
+      </figure>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No evaluation charts yet -- the model trains automatically once enough data is loaded.</p>
+    {% endif %}
+  </div>
+</details>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

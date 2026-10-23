@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Sign up{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <div class="auth-card__mark"><i class="fa-solid fa-cloud-sun-rain"></i></div>
+  <h1>Create your account</h1>
+  <p class="auth-card__lede">Register your farms and start tracking drought risk.</p>
+
+  <form method="POST" class="auth-form">
+    <div class="auth-form__row">
+      <div>
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" required autofocus placeholder="Thandeka">
+      </div>
+      <div>
+        <label for="surname">Surname</label>
+        <input type="text" id="surname" name="surname" required placeholder="Mthembu">
+      </div>
+    </div>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required placeholder="you@example.com">
+
+    <label for="location">Nearest town / area</label>
+    <input type="text" id="location" name="location" placeholder="e.g. Msinga, Dundee, Vryheid">
+
+    <div class="auth-form__row">
+      <div>
+        <label for="farm_name">Your farm's name</label>
+        <input type="text" id="farm_name" name="farm_name" placeholder="e.g. Zuziwe Farm">
+      </div>
+      <div>
+        <label for="herd_size">Herd size</label>
+        <input type="number" id="herd_size" name="herd_size" min="0" placeholder="e.g. 40">
+      </div>
+    </div>
+    <p class="muted" style="margin-top:0.3rem">Optional -- we'll match it to the nearest zone we have data for. You can add more farms later.</p>
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required placeholder="Create a password">
+
+    <label for="confirm_password">Confirm password</label>
+    <input type="password" id="confirm_password" name="confirm_password" required placeholder="Re-enter your password">
+
+    <button type="submit" class="btn btn--primary"><i class="fa-solid fa-user-plus"></i> Create account</button>
+  </form>
+
+  <p class="auth-card__foot">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}

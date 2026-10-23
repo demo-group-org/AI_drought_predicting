@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}My Farms{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>My farms</h1>
+  <p>Register a farm against a zone so we can track its drought risk and notify you.</p>
+</section>
+
+<div class="two-col">
+  <section class="panel">
+    <h2>Register a farm</h2>
+    {% if zones %}
+    <form method="POST" class="stacked-form">
+      <label for="name">Farm name</label>
+      <input type="text" id="name" name="name" required placeholder="e.g. Thandeka Grazing Camp A">
+
+      <label for="zone_id">Zone</label>
+      <select id="zone_id" name="zone_id" required>
+        {% for zone in zones %}
+        <option value="{{ zone.id }}" {{ 'selected' if zone.id == suggested_zone_id }}>{{ zone.name }}{% if zone.district %} ({{ zone.district }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      {% if suggested_zone_id %}
+      <p class="muted" style="margin-top:0.3rem"><i class="fa-solid fa-location-crosshairs"></i> Pre-selected based on the location you gave at signup.</p>
+      {% endif %}
+
+      <label for="herd_size">Herd size</label>
+      <input type="number" id="herd_size" name="herd_size" min="0" placeholder="15">
+
+      <div class="stacked-form__row">
+        <div>
+          <label for="latitude">Latitude (optional)</label>
+          <input type="text" id="latitude" name="latitude" placeholder="-28.75">
+        </div>
+        <div>
+          <label for="longitude">Longitude (optional)</label>
+          <input type="text" id="longitude" name="longitude" placeholder="30.42">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--primary"><i class="fa-solid fa-plus"></i> Register farm</button>
+    </form>
+    {% else %}
+    <div class="empty-state">
+      <i class="fa-solid fa-database"></i>
+      <p>No zones exist yet. Upload your JSON dataset on the <a href="{{ url_for('main.data_page') }}">Data &amp; Model</a> page first.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Registered farms</h2>
+    {% if farms %}
+    <ul class="farm-list">
+      {% for farm in farms %}
+      <li>
+        <i class="fa-solid fa-cow"></i>
+        <div>
+          <strong>{{ farm.name }}</strong>
+          <span>{{ farm.zone.name }} · {{ farm.herd_size }} head</span>
+        </div>
+        {% if farm.zone.severity_level %}
+        <span class="pill pill--{{ farm.zone.severity_level|lower }}">{{ farm.zone.severity_level }}</span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No farms registered yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

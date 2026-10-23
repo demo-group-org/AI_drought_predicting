@@ -1,0 +1,15 @@
+/* Data & Model page -- status panel + collapsible advanced section.
+   Shared tokens (colours, buttons, nav) live in style.css. */
+
+.status-row { display: flex; align-items: flex-start; gap: 0.8rem; }
+.status-row i { font-size: 1.4rem; color: var(--sage); margin-top: 0.1rem; }
+.status-row i.fa-circle-exclamation { color: var(--amber); }
+.status-row strong { display: block; font-size: 1.05rem; margin-bottom: 0.15rem; }
+
+.advanced-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--bushveld-deep);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.advanced-panel__body { margin-top: 1rem; }
