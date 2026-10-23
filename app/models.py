@@ -97,6 +97,8 @@ class Zone(db.Model):
                                          cascade="all, delete-orphan")
     alerts = db.relationship("DroughtAlert", backref="zone", lazy=True,
                               cascade="all, delete-orphan")
+    automation_audits = db.relationship("AutomationAudit", backref="zone", lazy=True,
+                                       cascade="all, delete-orphan")
     relocation_recommendations = db.relationship("RelocationRecommendation", backref="zone", lazy=True,
                                                   cascade="all, delete-orphan")
 
@@ -201,6 +203,24 @@ class DroughtAlert(db.Model):
 
     def __repr__(self):
         return f"<DroughtAlert zone={self.zone_id} {self.severity}>"
+
+
+class AutomationAudit(db.Model):
+    """A normalized log of automated IoT mitigation triggers originating from
+    the Lambda/edge automation flow. Keeps the raw payload and the actions that
+    were dispatched to edge devices for later investigation or audit reviews."""
+    __tablename__ = "automation_audits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    zone_id = db.Column(db.Integer, db.ForeignKey("zones.id"), nullable=False)
+    trigger_name = db.Column(db.String(120), nullable=False)
+    severity = db.Column(db.String(20), default="warning")
+    actions_executed = db.Column(db.Text)   # JSON list of normalized IoT actions
+    payload = db.Column(db.Text)            # Raw Lambda payload for traceability
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AutomationAudit zone={self.zone_id} severity={self.severity}>"
 
 
 class RelocationRecommendation(db.Model):

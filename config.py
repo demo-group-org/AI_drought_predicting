@@ -25,6 +25,9 @@ class Config:
     ML_DATA_DIR = os.path.join(BASE_DIR, "data")
     DASHBOARD_IMG_DIR = os.path.join(BASE_DIR, "app", "static", "img", "dashboard")
 
+    # Shared secret used by AWS Lambda / edge devices to post automation events.
+    AUTOMATION_API_KEY = os.environ.get("AUTOMATION_API_KEY", "change-this-automations-key")
+
     # Number of days after which a farm is re-checked and the farmer is
     # notified that a new farming month is safe to start (per requirement).
     MONTH_CYCLE_DAYS = 30

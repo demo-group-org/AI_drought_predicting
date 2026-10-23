@@ -3,8 +3,8 @@
   "rows_used": 384,
   "zones_used": 6,
   "regression": {
-    "mae": 1.4,
-    "rmse": 2.28,
+    "mae": 1.27,
+    "rmse": 2.15,
     "r2": 0.997
   },
   "classification": {
@@ -19,11 +19,11 @@
     ]
   },
   "feature_importance": {
-    "ndvi": 0.193,
-    "soil_moisture_pct": 0.02,
+    "ndvi": 0.158,
+    "soil_moisture_pct": 0.019,
     "rainfall_mm": 0.0,
-    "rainfall_deficit_pct": 0.075,
-    "temp_anomaly_c": 0.018,
-    "water_point_level_pct": 0.693
+    "rainfall_deficit_pct": 0.067,
+    "temp_anomaly_c": 0.006,
+    "water_point_level_pct": 0.75
   }
 }

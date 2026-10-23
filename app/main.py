@@ -11,12 +11,12 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models import (
     Zone, Farm, Notification, DroughtAssessment, User,
-    ForecastReading, DroughtAlert, RelocationRecommendation, HelpAlert, Message,
+    ForecastReading, DroughtAlert, RelocationRecommendation, HelpAlert, Message, AutomationAudit,
 )
 from app.ml import data_loader
 from app.ml.predict import predict_for_zone, suggest_alternative_zones, model_is_trained
 from app.ml.train_model import train_and_evaluate
-from app.advisor import summarize_zone_for_farmer
+from app.advisor import summarize_zone_for_farmer, format_iot_actions_for_zone
 from app.utils import match_zone_to_location
 from app.weather import fetch_daily_forecast
 from app.chatbot import answer_question
@@ -374,6 +374,61 @@ def api_farm_forecast(farm_id):
     days = fetch_daily_forecast(zone.latitude, zone.longitude)
     _forecast_cache[zone.id] = (_dt.datetime.utcnow(), days)
     return jsonify({"zone": zone.name, "days": days})
+
+
+@main_bp.route("/api/automations", methods=["POST"])
+def api_automations():
+    """Webhook secured by a shared API key for AWS Lambda-triggered
+    mitigation actions. It logs the event, stores normalized IoT commands,
+    and pushes danger notifications to every farm in the affected zone."""
+    provided_key = request.headers.get("X-API-Key")
+    expected_key = current_app.config.get("AUTOMATION_API_KEY")
+    if expected_key and provided_key != expected_key:
+        return jsonify({"error": "unauthorized"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    zone_id = payload.get("zone_id") or payload.get("zoneId")
+    if zone_id is None:
+        return jsonify({"error": "zone_id is required"}), 400
+
+    zone = Zone.query.get(zone_id)
+    if zone is None:
+        return jsonify({"error": "zone not found"}), 404
+
+    trigger_name = payload.get("trigger_name") or payload.get("triggerName") or "automated_mitigation"
+    severity = (payload.get("severity") or "warning").lower()
+    actions = payload.get("actions") or payload.get("recommended_actions") or []
+    normalized_actions = format_iot_actions_for_zone(zone, actions)
+
+    audit = AutomationAudit(
+        zone_id=zone.id,
+        trigger_name=trigger_name,
+        severity=severity,
+        actions_executed=json.dumps(normalized_actions),
+        payload=json.dumps(payload),
+    )
+    db.session.add(audit)
+
+    farms = Farm.query.filter_by(zone_id=zone.id).all()
+    notified = 0
+    for farm in farms:
+        message = (
+            f"Automated mitigation triggered for {zone.name}: {trigger_name}. "
+            f"Emergency actions executed for {severity} severity."
+        )
+        db.session.add(Notification(farm_id=farm.id, message=message, level="danger"))
+        notified += 1
+
+    db.session.commit()
+    return jsonify({
+        "status": "accepted",
+        "zone_id": zone.id,
+        "zone_name": zone.name,
+        "severity": severity,
+        "audit_id": audit.id,
+        "actions": normalized_actions,
+        "notification_count": notified,
+    })
 
 
 @main_bp.route("/api/chat", methods=["POST"])
