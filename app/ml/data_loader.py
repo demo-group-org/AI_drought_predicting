@@ -129,11 +129,15 @@ def is_rich_dataset(filepath):
 def _get_or_create_zone(name, latitude, longitude, province=None, district=None,
                          is_relocation_target=False, source_farm_code=None,
                          herd_size=None, primary_water_source=None):
-    zone = Zone.query.filter_by(name=name).first()
+    normalized_name = (name or "").strip()
+    zone = Zone.query.filter_by(name=normalized_name).first()
     if zone is None:
-        zone = Zone(name=name, latitude=latitude, longitude=longitude)
+        zone = Zone(name=normalized_name, latitude=latitude, longitude=longitude)
         db.session.add(zone)
         db.session.flush()
+
+    zone.latitude = latitude
+    zone.longitude = longitude
     if province:
         zone.province = province
     if district:
@@ -169,7 +173,8 @@ def load_rich_dataset(filepath):
         zone = _get_or_create_zone(
             name=farm.get("area") or farm["name"],
             latitude=farm["lat"], longitude=farm["lon"],
-            province=farm.get("province"), district=farm.get("province"),
+            province=farm.get("province"),
+            district=farm.get("district") or farm.get("province"),
             source_farm_code=farm.get("farm_id"),
             herd_size=farm.get("herd_size"),
             primary_water_source=farm.get("primary_water_source"),
