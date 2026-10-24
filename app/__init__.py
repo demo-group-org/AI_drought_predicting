@@ -3,11 +3,13 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_socketio import SocketIO
+from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import Config
 
 db = SQLAlchemy()
+migrate = Migrate()
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Please log in to view that page."
@@ -29,6 +31,7 @@ def create_app(config_class=Config):
     os.makedirs(app.config["DASHBOARD_IMG_DIR"], exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     socketio.init_app(app)
 
