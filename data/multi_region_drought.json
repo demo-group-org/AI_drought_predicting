@@ -1,0 +1,152 @@
+{
+  "metadata": {
+    "forecast_horizon_weeks": 12
+  },
+  "farms": [
+    {
+      "farm_id": "F001",
+      "name": "Dlomodlomo Farm",
+      "area": "Dlomodlomo, Vryheid",
+      "province": "KwaZulu-Natal",
+      "lat": -27.7785,
+      "lon": 30.7932,
+      "herd_size": 250,
+      "primary_water_source": "Borehole & River",
+      "dashboard_metrics": {
+        "current_severity_band": "critical",
+        "current_drought_stress_index": 82.5,
+        "estimated_livestock_at_risk_now": 45,
+        "water_point_level_pct_now": 28.0,
+        "feed_days_remaining_now": 14.0,
+        "projected_financial_impact_zar": 185000.0,
+        "trend": "worsening"
+      },
+      "scenarios": {
+        "worst_case": [
+          {
+            "week_start": "2026-10-25",
+            "ndvi": 0.22,
+            "soil_moisture_pct": 12.5,
+            "rainfall_mm": 2.1,
+            "rainfall_deficit_pct": 65.0,
+            "temp_anomaly_c": 3.4,
+            "drought_stress_index": 82.5,
+            "water_point_level_pct": 28.0,
+            "grazing_capacity_pct": 35.0,
+            "feed_days_remaining": 14.0,
+            "estimated_livestock_at_risk": 45,
+            "estimated_financial_impact_zar": 185000.0
+          }
+        ],
+        "best_case": [
+          {
+            "week_start": "2026-10-25",
+            "ndvi": 0.38,
+            "soil_moisture_pct": 28.0,
+            "rainfall_mm": 24.5,
+            "rainfall_deficit_pct": 10.0,
+            "temp_anomaly_c": 0.5,
+            "drought_stress_index": 45.0,
+            "water_point_level_pct": 65.0,
+            "grazing_capacity_pct": 75.0,
+            "feed_days_remaining": 45.0,
+            "estimated_livestock_at_risk": 5,
+            "estimated_financial_impact_zar": 35000.0
+          }
+        ]
+      },
+      "alerts": [
+        {
+          "alert_id": "F001-A01",
+          "week_start": "2026-10-25",
+          "severity": "critical",
+          "drought_stress_index": 82.5,
+          "lead_time_days": 7,
+          "message_to_farmer": "Severe moisture deficit detected. Immediate valve throttling and emergency pumping required.",
+          "recommended_actions": [
+            "Throttle water valves by 35%",
+            "Start emergency solar pump cycle"
+          ]
+        }
+      ],
+      "relocation_recommendations": [
+        {
+          "recommended_city": "Dundee",
+          "province": "KwaZulu-Natal",
+          "distance_km": 68.4,
+          "reason": "Higher sustained groundwater levels and better grazing capacity.",
+          "projected_grazing_capacity_pct": 78.0,
+          "estimated_relocation_cost_zar": 22000.0
+        }
+      ]
+    },
+    {
+      "farm_id": "F002",
+      "name": "Kuruman Plains",
+      "area": "Kuruman",
+      "province": "Northern Cape",
+      "lat": -27.4573,
+      "lon": 23.4325,
+      "herd_size": 180,
+      "primary_water_source": "Underground Aquifer",
+      "dashboard_metrics": {
+        "current_severity_band": "warning",
+        "current_drought_stress_index": 55.0,
+        "estimated_livestock_at_risk_now": 20,
+        "water_point_level_pct_now": 48.0,
+        "feed_days_remaining_now": 30.0,
+        "projected_financial_impact_zar": 95000.0,
+        "trend": "stable"
+      },
+      "scenarios": {
+        "worst_case": [
+          {
+            "week_start": "2026-10-25",
+            "ndvi": 0.30,
+            "soil_moisture_pct": 18.0,
+            "rainfall_mm": 5.0,
+            "rainfall_deficit_pct": 40.0,
+            "temp_anomaly_c": 2.1,
+            "drought_stress_index": 55.0,
+            "water_point_level_pct": 48.0,
+            "grazing_capacity_pct": 55.0,
+            "feed_days_remaining": 30.0,
+            "estimated_livestock_at_risk": 20,
+            "estimated_financial_impact_zar": 95000.0
+          }
+        ],
+        "best_case": [
+          {
+            "week_start": "2026-10-25",
+            "ndvi": 0.45,
+            "soil_moisture_pct": 35.0,
+            "rainfall_mm": 30.0,
+            "rainfall_deficit_pct": 0.0,
+            "temp_anomaly_c": -0.2,
+            "drought_stress_index": 30.0,
+            "water_point_level_pct": 80.0,
+            "grazing_capacity_pct": 85.0,
+            "feed_days_remaining": 70.0,
+            "estimated_livestock_at_risk": 0,
+            "estimated_financial_impact_zar": 10000.0
+          }
+        ]
+      },
+      "alerts": [
+        {
+          "alert_id": "F002-A01",
+          "week_start": "2026-10-25",
+          "severity": "warning",
+          "drought_stress_index": 55.0,
+          "lead_time_days": 14,
+          "message_to_farmer": "Moderate heat stress and declining soil moisture. Prepare shade netting and pulse irrigation.",
+          "recommended_actions": [
+            "Deploy shade netting",
+            "Activate hourly misting cycles"
+          ]
+        }
+      ],
+      "relocation_recommendations": []
+    }
+  ]
+}
