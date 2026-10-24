@@ -42,14 +42,6 @@ function renderZoneCards(zones) {
            </div>`
         : `<div class="muted" style="margin-top:0.5rem;font-size:0.75rem">No active IoT override</div>`;
 
-      const controlsHtml = !z.is_relocation_target
-        ? `<div style="display:flex;gap:0.35rem;margin-top:0.6rem">
-             <button onclick="dashboardTrigger(${z.id}, 'critical')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#B5502F;color:#fff">Critical</button>
-             <button onclick="dashboardTrigger(${z.id}, 'warning')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#D9A441;color:#16220F">Warn</button>
-             <button onclick="dashboardTrigger(${z.id}, 'normal')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#6E9A5A;color:#fff">Reset</button>
-           </div>`
-        : "";
-
       return `
         <div class="zone-card ${cls}">
           <div class="zone-card__name">${z.name}</div>
@@ -59,26 +51,10 @@ function renderZoneCards(zones) {
           <span class="zone-card__badge">${badge}</span>
           ${weatherHtml}
           ${autoHtml}
-          ${controlsHtml}
         </div>
       `;
     })
     .join("");
-}
-
-async function dashboardTrigger(zoneId, severity) {
-  const actions = severity === "critical"
-    ? [{ device: "water_valve", action: "throttle", value: 35 }, { device: "solar_pump", action: "start", value: "emergency" }]
-    : severity === "warning"
-    ? [{ device: "water_valve", action: "throttle", value: 15 }, { device: "solar_pump", action: "start", value: "standard" }]
-    : [{ device: "water_valve", action: "open", value: 100 }, { device: "solar_pump", action: "stop", value: "standby" }];
-
-  await fetch(`/api/zones/${zoneId}/trigger`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ severity, trigger_name: `dashboard_${severity}`, actions }),
-  });
-  await loadZoneOverview();
 }
 
 function sortZones(zones, mode) {
