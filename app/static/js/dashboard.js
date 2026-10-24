@@ -1,7 +1,6 @@
 let allZones = [];
 let dsiChart = null;
 let weatherChart = null;
-
 const SEVERITY_COLORS = { Low: "#6E9A5A", Moderate: "#D9A441", High: "#B5502F", Unknown: "#9C9686" };
 const RELOCATION_COLOR = "#3B6FA0";
 
@@ -23,7 +22,6 @@ function renderZoneCards(zones) {
     grid.innerHTML = `<p class="muted">No zones loaded yet.</p>`;
     return;
   }
-
   grid.innerHTML = zones
     .map((z) => {
       const cls = riskClass(z);
@@ -35,6 +33,23 @@ function renderZoneCards(zones) {
              <span>${Math.round(w.temp_c)}&deg;C</span>
            </div>`
         : "";
+
+      const auto = z.latest_automation;
+      const autoHtml = auto
+        ? `<div style="margin-top:0.55rem;padding:0.4rem 0.5rem;background:var(--paper);border-radius:6px;font-size:0.75rem">
+             <strong><i class="fa-solid fa-bolt" style="color:#B5502F"></i> IoT: ${auto.severity.toUpperCase()}</strong><br>
+             ${(auto.actions || []).map((a) => `${a.device}: ${a.action} (${a.value ?? ""})`).join(" | ")}
+           </div>`
+        : `<div class="muted" style="margin-top:0.5rem;font-size:0.75rem">No active IoT override</div>`;
+
+      const controlsHtml = !z.is_relocation_target
+        ? `<div style="display:flex;gap:0.35rem;margin-top:0.6rem">
+             <button onclick="dashboardTrigger(${z.id}, 'critical')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#B5502F;color:#fff">Critical</button>
+             <button onclick="dashboardTrigger(${z.id}, 'warning')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#D9A441;color:#16220F">Warn</button>
+             <button onclick="dashboardTrigger(${z.id}, 'normal')" class="btn" style="padding:0.25rem 0.5rem;font-size:0.72rem;background:#6E9A5A;color:#fff">Reset</button>
+           </div>`
+        : "";
+
       return `
         <div class="zone-card ${cls}">
           <div class="zone-card__name">${z.name}</div>
@@ -43,10 +58,27 @@ function renderZoneCards(zones) {
           <div class="zone-card__dsi-label">Drought stress index</div>
           <span class="zone-card__badge">${badge}</span>
           ${weatherHtml}
+          ${autoHtml}
+          ${controlsHtml}
         </div>
       `;
     })
     .join("");
+}
+
+async function dashboardTrigger(zoneId, severity) {
+  const actions = severity === "critical"
+    ? [{ device: "water_valve", action: "throttle", value: 35 }, { device: "solar_pump", action: "start", value: "emergency" }]
+    : severity === "warning"
+    ? [{ device: "water_valve", action: "throttle", value: 15 }, { device: "solar_pump", action: "start", value: "standard" }]
+    : [{ device: "water_valve", action: "open", value: 100 }, { device: "solar_pump", action: "stop", value: "standby" }];
+
+  await fetch(`/api/zones/${zoneId}/trigger`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ severity, trigger_name: `dashboard_${severity}`, actions }),
+  });
+  await loadZoneOverview();
 }
 
 function sortZones(zones, mode) {
@@ -63,7 +95,6 @@ function renderDsiChart(zones) {
   const labels = zones.map((z) => z.name);
   const data = zones.map((z) => z.risk_score ?? 0);
   const colors = zones.map(colorFor);
-
   if (!dsiChart) {
     dsiChart = new Chart(ctx, {
       type: "bar",
@@ -89,30 +120,20 @@ function renderWeatherChart(zones) {
   const labels = withWeather.map((z) => z.name);
   const temps = withWeather.map((z) => z.weather.temp_c);
   const dsis = withWeather.map((z) => z.risk_score ?? 0);
-
-  if (!labels.length) {
-    ctx.parentElement.querySelector(".chart-empty-note")?.remove();
-    const note = document.createElement("p");
-    note.className = "muted chart-empty-note";
-    note.innerHTML = 'No live weather yet -- it refreshes automatically soon after the server starts (needs <code>OPENWEATHER_API_KEY</code> set in <code>.env</code>).';
-    ctx.parentElement.appendChild(note);
-    return;
-  }
-  ctx.parentElement.querySelector(".chart-empty-note")?.remove();
-
+  if (!labels.length) return;
   if (!weatherChart) {
     weatherChart = new Chart(ctx, {
       data: {
         labels,
         datasets: [
-          { type: "bar", label: "Temperature (\u00b0C)", data: temps, backgroundColor: "#D9A441", yAxisID: "y" },
+          { type: "bar", label: "Temperature (°C)", data: temps, backgroundColor: "#D9A441", yAxisID: "y" },
           { type: "line", label: "Drought stress index", data: dsis, borderColor: "#B5502F", backgroundColor: "#B5502F", yAxisID: "y1", tension: 0.3 },
         ],
       },
       options: {
         responsive: true,
         scales: {
-          y: { position: "left", title: { display: true, text: "\u00b0C" } },
+          y: { position: "left", title: { display: true, text: "°C" } },
           y1: { position: "right", min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: "DSI" } },
         },
       },
@@ -129,15 +150,10 @@ async function loadZoneOverview() {
   const res = await fetch("/api/zones");
   allZones = await res.json();
   renderZoneCards(sortZones(allZones, document.getElementById("sort-select").value));
-  if (typeof Chart === "undefined") {
-    document.querySelectorAll("canvas").forEach((c) => {
-      c.insertAdjacentHTML("afterend", '<p class="muted">Chart library could not load -- check your internet connection and refresh.</p>');
-      c.remove();
-    });
-    return;
+  if (typeof Chart !== "undefined") {
+    renderDsiChart(sortZones(allZones, "risk-desc"));
+    renderWeatherChart(allZones);
   }
-  renderDsiChart(sortZones(allZones, "risk-desc"));
-  renderWeatherChart(allZones);
 }
 
 document.getElementById("sort-select").addEventListener("change", (e) => {
@@ -146,7 +162,5 @@ document.getElementById("sort-select").addEventListener("change", (e) => {
 
 loadZoneOverview();
 
-// Keep the dashboard feeling live: re-poll periodically. This is a cheap
-// DB read (weather/model results are refreshed server-side on their own
-// schedule), not a call to any external API from the browser.
-setInterval(loadZoneOverview, 60000);
+// Keep dashboard updated every 10 seconds with AWS Lambda/IoT webhook triggers
+setInterval(loadZoneOverview, 10000);

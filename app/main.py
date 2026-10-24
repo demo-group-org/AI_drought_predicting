@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 
 from flask import (
     Blueprint, render_template, redirect, url_for, request,
@@ -8,7 +9,7 @@ from flask import (
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
-from app import db
+from app import db, socketio
 from app.models import (
     Zone, Farm, Notification, DroughtAssessment, User,
     ForecastReading, DroughtAlert, RelocationRecommendation, HelpAlert, Message, AutomationAudit,
@@ -16,7 +17,11 @@ from app.models import (
 from app.ml import data_loader
 from app.ml.predict import predict_for_zone, suggest_alternative_zones, model_is_trained
 from app.ml.train_model import train_and_evaluate
-from app.advisor import summarize_zone_for_farmer, format_iot_actions_for_zone
+from app.advisor import (
+    summarize_zone_for_farmer,
+    format_iot_actions_for_zone,
+    SEVERITY_BAND_TO_LEVEL,
+)
 from app.utils import match_zone_to_location
 from app.weather import fetch_daily_forecast
 from app.chatbot import answer_question
@@ -60,6 +65,23 @@ def map_view():
     return render_template("map.html")
 
 
+def _serialize_latest_audit(zone_id):
+    audit = (
+        AutomationAudit.query.filter_by(zone_id=zone_id)
+        .order_by(AutomationAudit.created_at.desc())
+        .first()
+    )
+    if not audit:
+        return None
+    return {
+        "id": audit.id,
+        "trigger_name": audit.trigger_name,
+        "severity": audit.severity,
+        "actions": json.loads(audit.actions_executed or "[]"),
+        "created_at": audit.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+    }
+
+
 @main_bp.route("/api/zones")
 @login_required
 def api_zones():
@@ -72,12 +94,13 @@ def api_zones():
             "province": z.province,
             "latitude": z.latitude,
             "longitude": z.longitude,
-            "risk_score": z.risk_score,
+            "risk_score": z.risk_score if z.risk_score is not None else z.current_dsi,
             "severity_level": z.severity_level or "Unknown",
             "current_severity_band": z.current_severity_band,
             "is_relocation_target": bool(z.is_relocation_target),
             "ndvi": z.ndvi,
             "water_availability": z.water_availability,
+            "latest_automation": _serialize_latest_audit(z.id),
             "weather": {
                 "temp_c": z.current_temp_c,
                 "main": z.current_weather_main,
@@ -97,6 +120,20 @@ def api_zone_detail(zone_id):
     scenario = request.args.get("scenario", "worst_case")
     if scenario not in ("worst_case", "best_case"):
         scenario = "worst_case"
+
+    recent_audits = [
+        {
+            "id": a.id,
+            "trigger_name": a.trigger_name,
+            "severity": a.severity,
+            "actions": json.loads(a.actions_executed or "[]"),
+            "created_at": a.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        }
+        for a in AutomationAudit.query.filter_by(zone_id=zone.id)
+        .order_by(AutomationAudit.created_at.desc())
+        .limit(5)
+        .all()
+    ]
 
     readings = (
         ForecastReading.query
@@ -143,6 +180,7 @@ def api_zone_detail(zone_id):
         ]
         return jsonify({
             "source": "rich_dataset",
+            "zone_id": zone.id,
             "zone": zone.name,
             "province": zone.province,
             "herd_size": zone.herd_size,
@@ -169,22 +207,20 @@ def api_zone_detail(zone_id):
             "series": series,
             "alerts": alerts,
             "relocation_recommendations": relocations,
+            "automation_audits": recent_audits,
         })
 
-    # No rich forecast loaded for this zone yet -- fall back to the
-    # formula/ML prediction path from the simple dataset format.
     result = predict_for_zone(current_app, zone)
+    result["zone_id"] = zone.id
     result["suggestions"] = suggest_alternative_zones(zone) if result["severity_level"] == "High" else []
     result["source"] = result.get("source", "formula_fallback")
+    result["automation_audits"] = recent_audits
     return jsonify(result)
 
 
 @main_bp.route("/api/farms/<int:farm_id>/advisor")
 @login_required
 def api_farm_advisor(farm_id):
-    """Powers the home page's worst-case/best-case advisor toggle: current
-    status + plain-language message, plus what the end of the chosen
-    scenario's forecast horizon looks like for this farm's zone."""
     farm = Farm.query.get_or_404(farm_id)
     if farm.owner_id != current_user.id:
         return jsonify({"error": "not your farm"}), 403
@@ -197,10 +233,11 @@ def api_farm_advisor(farm_id):
     summary = summarize_zone_for_farmer(current_app, zone)
     summary["zone_name"] = zone.name
     summary["farm_name"] = farm.name
+    summary["latest_automation"] = _serialize_latest_audit(zone.id)
     summary["weather"] = {
         "temp_c": zone.current_temp_c,
         "main": zone.current_weather_main,
-        "description": zone.current_weather_descriptiodn,
+        "description": zone.current_weather_description,
         "icon": zone.current_weather_icon,
     } if zone.current_temp_c is not None else None
 
@@ -221,6 +258,90 @@ def api_farm_advisor(farm_id):
             "final_financial_impact_zar": last.estimated_financial_impact_zar,
         }
     return jsonify(summary)
+
+
+def _execute_zone_automation(zone, payload):
+    """Shared helper that updates Zone state, logs AutomationAudit, notifies
+    farms, and broadcasts a live Socket.IO event to all connected browsers."""
+    trigger_name = payload.get("trigger_name") or payload.get("triggerName") or "automated_mitigation"
+    severity = (payload.get("severity") or "warning").lower()
+    actions = payload.get("actions") or payload.get("recommended_actions") or []
+
+    # 1. Sync Zone severity FIRST so format_iot_actions_for_zone sees the new severity band
+    zone.current_severity_band = severity
+    zone.severity_level = SEVERITY_BAND_TO_LEVEL.get(severity, "Moderate")
+
+    normalized_actions = format_iot_actions_for_zone(zone, actions)
+
+    if "drought_stress_index" in payload or "risk_score" in payload:
+        new_dsi = float(payload.get("drought_stress_index") or payload.get("risk_score"))
+        zone.current_dsi = new_dsi
+        zone.risk_score = new_dsi
+    else:
+        current_score = zone.risk_score if zone.risk_score is not None else (zone.current_dsi or 0)
+        if severity == "critical" and current_score <= 66:
+            zone.risk_score = 82.0
+            zone.current_dsi = 82.0
+            zone.trend = "worsening"
+        elif severity == "warning" and not (34 <= current_score <= 66):
+            zone.risk_score = 55.0
+            zone.current_dsi = 55.0
+            zone.trend = "worsening"
+        elif severity in ("normal", "watch") and current_score > 33:
+            zone.risk_score = 24.0
+            zone.current_dsi = 24.0
+            zone.trend = "improving"
+
+    if "water_point_level_pct" in payload:
+        zone.water_point_level_pct_now = float(payload["water_point_level_pct"])
+    if "feed_days_remaining" in payload:
+        zone.feed_days_remaining_now = float(payload["feed_days_remaining"])
+
+    zone.last_updated = datetime.utcnow()
+
+    # 2. Record audit trail
+    audit = AutomationAudit(
+        zone_id=zone.id,
+        trigger_name=trigger_name,
+        severity=severity,
+        actions_executed=json.dumps(normalized_actions),
+        payload=json.dumps(payload),
+    )
+    db.session.add(audit)
+
+    # 3. Notify all farms in the zone
+    farms = Farm.query.filter_by(zone_id=zone.id).all()
+    notified = 0
+    notif_level = "danger" if severity == "critical" else ("warning" if severity == "warning" else "info")
+    for farm in farms:
+        message = (
+            f"Automated mitigation triggered for {zone.name} ({trigger_name}): "
+            f"Zone is now {zone.severity_level.upper()} risk ({severity}). "
+            f"Executed {len(normalized_actions)} IoT command(s)."
+        )
+        db.session.add(Notification(farm_id=farm.id, message=message, level=notif_level))
+        notified += 1
+
+    db.session.commit()
+
+    event_data = {
+        "status": "accepted",
+        "zone_id": zone.id,
+        "zone_name": zone.name,
+        "severity": severity,
+        "severity_level": zone.severity_level,
+        "risk_score": zone.risk_score,
+        "current_dsi": zone.current_dsi,
+        "audit_id": audit.id,
+        "trigger_name": trigger_name,
+        "actions": normalized_actions,
+        "created_at": audit.created_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "notification_count": notified,
+    }
+
+    # 4. Broadcast real-time Socket.IO event to Map, Dashboard, and Home pages
+    socketio.emit("automation_event", event_data)
+    return event_data
 
 
 @main_bp.route("/farms", methods=["GET", "POST"])
@@ -333,9 +454,9 @@ def data_train():
         flash(result["message"], "warning")
     else:
         flash("Model trained. Metrics and charts are updated below.", "success")
-        # refresh every zone's prediction with the freshly trained model
         for zone in Zone.query.all():
-            predict_for_zone(current_app, zone)
+            if zone.current_dsi is None:
+                predict_for_zone(current_app, zone)
     return redirect(url_for("main.data_page"))
 
 
@@ -366,21 +487,18 @@ def api_farm_forecast(farm_id):
         return jsonify({"error": "not your farm"}), 403
 
     zone = farm.zone
-    import datetime as _dt
     cached = _forecast_cache.get(zone.id)
-    if cached and (_dt.datetime.utcnow() - cached[0]).total_seconds() < _FORECAST_CACHE_MINUTES * 60:
+    if cached and (datetime.utcnow() - cached[0]).total_seconds() < _FORECAST_CACHE_MINUTES * 60:
         return jsonify({"zone": zone.name, "days": cached[1]})
 
     days = fetch_daily_forecast(zone.latitude, zone.longitude)
-    _forecast_cache[zone.id] = (_dt.datetime.utcnow(), days)
+    _forecast_cache[zone.id] = (datetime.utcnow(), days)
     return jsonify({"zone": zone.name, "days": days})
 
 
 @main_bp.route("/api/automations", methods=["POST"])
 def api_automations():
-    """Webhook secured by a shared API key for AWS Lambda-triggered
-    mitigation actions. It logs the event, stores normalized IoT commands,
-    and pushes danger notifications to every farm in the affected zone."""
+    """Webhook secured by a shared API key for AWS Lambda-triggered mitigation actions."""
     provided_key = request.headers.get("X-API-Key")
     expected_key = current_app.config.get("AUTOMATION_API_KEY")
     if expected_key and provided_key != expected_key:
@@ -391,44 +509,30 @@ def api_automations():
     if zone_id is None:
         return jsonify({"error": "zone_id is required"}), 400
 
-    zone = Zone.query.get(zone_id)
+    try:
+        zone_id = int(zone_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "zone_id must be an integer"}), 400
+
+    zone = db.session.get(Zone, zone_id)
     if zone is None:
         return jsonify({"error": "zone not found"}), 404
 
-    trigger_name = payload.get("trigger_name") or payload.get("triggerName") or "automated_mitigation"
-    severity = (payload.get("severity") or "warning").lower()
-    actions = payload.get("actions") or payload.get("recommended_actions") or []
-    normalized_actions = format_iot_actions_for_zone(zone, actions)
+    result = _execute_zone_automation(zone, payload)
+    return jsonify(result)
 
-    audit = AutomationAudit(
-        zone_id=zone.id,
-        trigger_name=trigger_name,
-        severity=severity,
-        actions_executed=json.dumps(normalized_actions),
-        payload=json.dumps(payload),
-    )
-    db.session.add(audit)
 
-    farms = Farm.query.filter_by(zone_id=zone.id).all()
-    notified = 0
-    for farm in farms:
-        message = (
-            f"Automated mitigation triggered for {zone.name}: {trigger_name}. "
-            f"Emergency actions executed for {severity} severity."
-        )
-        db.session.add(Notification(farm_id=farm.id, message=message, level="danger"))
-        notified += 1
+@main_bp.route("/api/zones/<int:zone_id>/trigger", methods=["POST"])
+@login_required
+def api_trigger_zone_automation(zone_id):
+    """Interactive endpoint allowing logged-in users to trigger or test
+    Lambda/IoT mitigations directly from the Map or Dashboard UI."""
+    zone = Zone.query.get_or_404(zone_id)
+    payload = request.get_json(silent=True) or {}
+    payload["zone_id"] = zone.id
 
-    db.session.commit()
-    return jsonify({
-        "status": "accepted",
-        "zone_id": zone.id,
-        "zone_name": zone.name,
-        "severity": severity,
-        "audit_id": audit.id,
-        "actions": normalized_actions,
-        "notification_count": notified,
-    })
+    result = _execute_zone_automation(zone, payload)
+    return jsonify(result)
 
 
 @main_bp.route("/api/chat", methods=["POST"])
