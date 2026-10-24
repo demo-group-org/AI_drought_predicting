@@ -11,14 +11,16 @@ import json
 SEVERITY_BAND_TO_LEVEL = {"normal": "Low", "watch": "Low", "warning": "Moderate", "critical": "High"}
 
 
-def format_iot_actions_for_zone(zone, actions=None):
+def format_iot_actions_for_zone(zone, actions=None, override_severity=None):
     """Normalize recommended drought actions into the device-oriented format
-    used by edge gateways / Lambda automation payloads. This keeps the human-
-    readable advisory text intact while exposing the exact commands that can be
-    sent outward to valves, pumps, and other sensors."""
+    used by edge gateways / Lambda automation payloads."""
     normalized = []
     candidate_actions = actions or []
-    severity = (zone.current_severity_band or "normal").lower() if zone else "unknown"
+    severity = (
+        override_severity
+        or (zone.current_severity_band if zone else None)
+        or "normal"
+    ).lower()
 
     def map_action(raw_action):
         if isinstance(raw_action, dict):
@@ -39,7 +41,6 @@ def format_iot_actions_for_zone(zone, actions=None):
         label = str(raw_action or "").strip()
         if not label:
             return None
-
         lower = label.lower()
         if "valve" in lower or "water" in lower:
             device = "water_valve"
@@ -94,7 +95,7 @@ def format_iot_actions_for_zone(zone, actions=None):
                 "severity": "critical",
                 "device": "water_valve",
                 "action": "throttle",
-                "value": "30%",
+                "value": 35,
                 "target": zone.name,
             },
             {
@@ -107,7 +108,6 @@ def format_iot_actions_for_zone(zone, actions=None):
                 "target": zone.name,
             },
         ]
-
     return normalized
 
 
